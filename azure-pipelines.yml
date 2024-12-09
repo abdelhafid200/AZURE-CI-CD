@@ -1,19 +1,31 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-- main
+  branches:
+    include:
+      - main  # Déclencher le pipeline automatiquement sur chaque push dans la branche "main".
 
 pool:
-  vmImage: ubuntu-latest
+  name: Default  # Remplacez par le nom de votre pool si vous utilisez un agent auto-hébergé.
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+# Étape 1 : Récupérer le code source
+- checkout: self
+  fetchDepth: 1
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+# Étape 2 : Construire et pousser l'image Docker vers Docker Hub
+- task: Docker@2
+  inputs:
+    containerRegistry: 'az-dockerhub-connection'  # Connexion Docker Hub configurée dans Azure DevOps.
+    repository: 'abdelhafidkhalil4009/devopsazure'      # Répertoire de l'image Docker (<utilisateur>/<nom-repo>).
+    command: 'buildAndPush'                       # Construire et pousser l'image Docker.
+    Dockerfile: 'Dockerfile'                      # Chemin relatif vers le Dockerfile.
+    tags: 'latest'                                # Utiliser le tag "latest" pour l'image.
+
+# Étape 3 : Déclencher le déploiement Render via un Deploy Hook
+- task: PowerShell@2
+  inputs:
+    targetType: 'inline'
+    script: |
+      # Appeler l'URL du Deploy Hook pour déclencher le déploiement Render
+      $url = "https://api.render.com/deploy/srv-ctbi9jdds78s73fi1eig?key=yegss-vZM3A"
+      Invoke-RestMethod -Uri $url -Method Post
+  displayName: 'Trigger Deploy via Render Hook'
